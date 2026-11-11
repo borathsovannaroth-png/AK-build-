@@ -1,0 +1,31 @@
+name: Build APK
+on:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.9
+      - name: Prepare project
+        run: |
+          shopt -s nullglob
+          mkdir -p work
+          if [ -f project.zip ]; then unzip -q -o project.zip -d work; fi
+          for z in zips/*.zip; do unzip -q -o "$z" -d work; done
+          if [ -d extra ]; then cp -a extra/. work/; fi
+          S=$(find work -maxdepth 4 -name 'settings.gradle*' | head -1)
+          if [ -z "$S" ]; then echo "error: no settings.gradle found. Check your zips or file paths"; exit 1; fi
+          echo "DIR=$(dirname "$S")" >> $GITHUB_ENV
+      - name: Build APK
+        run: cd "$DIR" && gradle assembleDebug --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-apk
+          path: "work/**/build/outputs/apk/debug/*.apk"
