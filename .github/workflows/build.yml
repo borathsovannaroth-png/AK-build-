@@ -1,36 +1,61 @@
-name: Build APK
+name: Build Android APK from Zip
+
 on:
+  push:
+    paths:
+      - 'zips/**'
+      - '.github/workflows/build.yml'
   workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: 8.7
-      - name: Prepare project
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Find and unzip project archive
         run: |
-          shopt -s nullglob
-          mkdir -p work
-          # find every .zip anywhere in the repo (sorted), unzip in order
-          find . -type f -iname '*.zip' -not -path './work/*' -not -path './.git/*' | sort | while read -r z; do
-            echo "Unzipping $z"
-            unzip -q -o "$z" -d work
-          done
-          # loose files go on top
-          if [ -d extra ]; then cp -a extra/. work/; fi
-          S=$(find work -maxdepth 4 -name 'settings.gradle*' | head -1)
-          if [ -z "$S" ]; then echo "error: no settings.gradle found. Check your zips or file paths"; exit 1; fi
-          echo "Building from: $(dirname "$S")"
-          echo "DIR=$(dirname "$S")" >> $GITHUB_ENV
-      - name: Build APK
-        run: cd "$DIR" && gradle assembleDebug --stacktrace
-      - uses: actions/upload-artifact@v4
+          ZIP_FILE=$(find . -type f -name "*.zip" | head -n 1)
+          if [ -z "$ZIP_FILE" ]; then
+            echo "Error: No .zip file found in the repository."
+            exit 1
+          fi
+          echo "Found zip: $ZIP_FILE"
+          mkdir -p extracted_project
+          unzip -q "$ZIP_FILE" -d extracted_project
+
+      - name: Locate Gradle root
+        id: gradle-dir
+        run: |
+          SETTINGS_FILE=$(find extracted_project -type f \( -name "settings.gradle" -o -name "settings.gradle.kts" \) | head -n 1)
+          if [ -z "$SETTINGS_FILE" ]; then
+            echo "Error: settings.gradle not found inside the zip."
+            exit 1
+          fi
+          PROJECT_DIR=$(dirname "$SETTINGS_FILE")
+          echo "Gradle root located at: $PROJECT_DIR"
+          echo "dir=$PROJECT_DIR" >> $GITHUB_OUTPUT
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
-          name: app-apk
-          path: "work/**/build/outputs/apk/debug/app-debug.apk"
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle 8.7
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Build Debug APK
+        working-directory: ${{ steps.gradle-dir.outputs.dir }}
+        run: gradle assembleDebug
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: ${{ steps.gradle-dir.outputs.dir }}/**/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
