@@ -15,11 +15,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: List repository structure for debugging
+        run: |
+          echo "=== Repository root contents ==="
+          ls -la
+          echo "=== Contents of zips/ folder if it exists ==="
+          ls -la zips/ || echo "zips folder not found"
+
       - name: Find and unzip project archive
         run: |
           ZIP_FILE=$(find . -type f -name "*.zip" | head -n 1)
           if [ -z "$ZIP_FILE" ]; then
-            echo "Error: No .zip file found in the repository."
+            echo "Error: No .zip file found in the repository. Please upload a .zip file into the zips/ folder."
             exit 1
           fi
           echo "Found zip: $ZIP_FILE"
