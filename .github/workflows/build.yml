@@ -1,9 +1,8 @@
-name: Build AKULA GM
+name: Build AKULA GM APK
 
 on:
   push:
     branches: [ "main", "master" ]
-  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -14,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
@@ -26,37 +25,27 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android SDK packages
+      - name: Unpack project zip
         run: |
-          yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.7'
+          ZIP_FILE=$(find . -maxdepth 2 -name "*.zip" | head -n 1)
+          if [ -n "$ZIP_FILE" ]; then
+            echo "Extracting $ZIP_FILE..."
+            unzip -q "$ZIP_FILE" -d src_extracted
+            PROJECT_DIR=$(find src_extracted -name "settings.gradle*" | head -n 1 | xargs dirname)
+          else
+            PROJECT_DIR="."
+          fi
+          echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
 
       - name: Build debug APK
-        run: gradle :app:assembleDebug --stacktrace
-
-      - name: Package source zip
         run: |
-          zip -r AKULA-GM-source.zip . \
-            -x "*/build/*" \
-            -x ".git/*" \
-            -x "*.zip" \
-            -x ".gradle/*"
+          cd "$PROJECT_DIR"
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: AKULA-GM-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
-          if-no-files-found: error
-
-      - name: Upload source zip
-        uses: actions/upload-artifact@v4
-        with:
-          name: AKULA-GM-source
-          path: AKULA-GM-source.zip
+          path: "**/app/build/outputs/apk/debug/*.apk"
           if-no-files-found: error
