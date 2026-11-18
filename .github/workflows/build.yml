@@ -16,12 +16,18 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      - name: Install Gradle 8.9
+        run: |
+          wget -q https://services.gradle.org/distributions/gradle-8.9-bin.zip
+          unzip -q gradle-8.9-bin.zip
+          echo "PWD/gradle−8.9/bin">>PWD/gradle-8.9/bin" >>PWD/gradle−8.9/bin">>GITHUB_PATH
+
       - name: Move project to root
         run: |
           cp -r extra/* . || true
           ls -la
 
-      - name: Build APK (system Gradle)
+      - name: Build APK
         run: gradle assembleDebug --no-daemon --stacktrace
 
       - name: Upload APK
