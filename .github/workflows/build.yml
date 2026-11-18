@@ -1,18 +1,11 @@
-name: Build AKULA GM
+name: Build APK
 
 on:
-  push:
-    branches: [ main, master ]
   workflow_dispatch:
-
-defaults:
-  run:
-    working-directory: extra
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -23,14 +16,16 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Make gradlew executable
-        run: chmod +x gradlew
+      - name: Move project to root
+        run: |
+          cp -r extra/* . || true
+          ls -la
 
-      - name: Build APK
-        run: ./gradlew assembleDebug
+      - name: Build APK (system Gradle)
+        run: gradle assembleDebug --no-daemon --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: AKULA-GM-debug
-          path: extra/app/build/outputs/apk/debug/*.apk
+          name: app-apk
+          path: "**/build/outputs/apk/debug/*.apk"
