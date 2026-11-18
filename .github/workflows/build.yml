@@ -5,6 +5,10 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+defaults:
+  run:
+    working-directory: extra
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -19,16 +23,14 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: '8.2'
+      - name: Make gradlew executable
+        run: chmod +x gradlew
 
-      - name: Build Debug APK
-        run: gradle assembleDebug --stacktrace
+      - name: Build APK
+        run: ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: AKULA-GM-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: extra/app/build/outputs/apk/debug/*.apk
